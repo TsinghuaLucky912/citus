@@ -160,7 +160,7 @@ SELECT undistribute_table('generated_stored_ref');
 
 --
 -- In PG15, there is a new command called MERGE
--- It is currently not supported for Citus tables
+-- It is currently not supported for Citus non-local tables
 -- Test the behavior with various commands with Citus table types
 -- Relevant PG Commit: 7103ebb7aae8ab8076b7e85f335ceb8fe799097c
 --
