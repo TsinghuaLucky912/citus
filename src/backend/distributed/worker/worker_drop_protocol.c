@@ -147,7 +147,7 @@ WorkerDropDistributedTable(Oid relationId)
 	{
 		uint64 shardId = *shardIdPointer;
 
-		List *shardPlacementList = ShardPlacementListIncludingOrphanedPlacements(shardId);
+		List *shardPlacementList = ShardPlacementListByShardId(shardId);
 		ShardPlacement *placement = NULL;
 		foreach_ptr(placement, shardPlacementList)
 		{

@@ -215,7 +215,7 @@ SELECT citus_move_shard_placement(8981000, 'localhost', :worker_1_port, 'localho
 
 -- END : Move one shard before we split it.
 CALL citus_cleanup_orphaned_shards();
-NOTICE:  cleaned up 3 orphaned shards
+NOTICE:  cleaned up 4 orphaned shards
 -- BEGIN : Set node id variables
 SELECT nodeid AS worker_1_node FROM pg_dist_node WHERE nodeport=:worker_1_port \gset
 SELECT nodeid AS worker_2_node FROM pg_dist_node WHERE nodeport=:worker_2_port \gset
@@ -234,7 +234,7 @@ SELECT pg_catalog.citus_split_shard_by_split_points(
 
 -- BEGIN: Perform deferred cleanup.
 CALL pg_catalog.citus_cleanup_orphaned_resources();
-NOTICE:  cleaned up 4 orphaned resources
+NOTICE:  cleaned up 3 orphaned resources
 -- END: Perform deferred cleanup.
 -- Perform 3 way split
 SELECT pg_catalog.citus_split_shard_by_split_points(

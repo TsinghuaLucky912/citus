@@ -373,7 +373,7 @@ DropTaskList(Oid relationId, char *schemaName, char *relationName,
 		task->replicationModel = REPLICATION_MODEL_INVALID;
 		task->anchorShardId = shardId;
 		task->taskPlacementList =
-			ShardPlacementListIncludingOrphanedPlacements(shardId);
+			ShardPlacementListByShardId(shardId);
 
 		taskList = lappend(taskList, task);
 	}
@@ -410,8 +410,6 @@ ExecuteDropShardPlacementCommandRemotely(ShardPlacement *shardPlacement,
 
 	if (PQstatus(connection->pgConn) != CONNECTION_OK)
 	{
-		uint64 placementId = shardPlacement->placementId;
-
 		char *workerName = shardPlacement->nodeName;
 		uint32 workerPort = shardPlacement->nodePort;
 
@@ -426,8 +424,6 @@ ExecuteDropShardPlacementCommandRemotely(ShardPlacement *shardPlacement,
 								 workerPort),
 						  errdetail("Marking this shard placement for "
 									"deletion")));
-
-		UpdateShardPlacementState(placementId, SHARD_STATE_TO_DELETE);
 
 		return;
 	}

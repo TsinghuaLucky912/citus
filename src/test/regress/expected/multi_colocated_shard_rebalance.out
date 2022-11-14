@@ -565,7 +565,7 @@ SELECT master_move_shard_placement(13000034, 'localhost', :worker_1_port, 'local
 (1 row)
 
 CALL citus_cleanup_orphaned_shards();
-NOTICE:  cleaned up 5 orphaned shards
+NOTICE:  cleaned up 9 orphaned shards
 -- confirm the successfull move
 SELECT * FROM run_command_on_placements('serial_move_test', 'SELECT DISTINCT key FROM %s WHERE key = 15') WHERE result = '15' AND shardid = 13000034;
  nodename  | nodeport | shardid  | success | result
@@ -727,7 +727,7 @@ DETAIL:  from localhost:xxxxx
 (1 row)
 
 CALL citus_cleanup_orphaned_shards();
-LOG:  deferred drop of orphaned shard public.test_with_pkey_13000042 on localhost:xxxxx after a move completed
+LOG:  deferred drop of orphaned resource public.test_with_pkey_13000042 on localhost:xxxxx completed
 NOTICE:  cleaned up 1 orphaned shards
 SET client_min_messages TO DEFAULT;
 -- we don't support multiple shard moves in a single transaction

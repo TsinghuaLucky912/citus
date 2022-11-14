@@ -1,9 +1,8 @@
 /*-------------------------------------------------------------------------
  *
  * shard_cleaner.c
- *	  This implements the background process that cleans shards that are
- *	  left around. Shards that are left around are marked as state 4
- *	  (SHARD_STATE_TO_DELETE) in pg_dist_placement.
+ *	  This implements the background process that cleans resources that are
+ *	  left around.
  *
  * Copyright (c) 2018, Citus Data, Inc.
  *
@@ -75,7 +74,6 @@ PG_FUNCTION_INFO_V1(citus_cleanup_orphaned_shards);
 PG_FUNCTION_INFO_V1(isolation_cleanup_orphaned_shards);
 PG_FUNCTION_INFO_V1(citus_cleanup_orphaned_resources);
 
-static int DropOrphanedShardsForMove(bool waitForLocks);
 static bool TryDropResourceByCleanupRecordOutsideTransaction(CleanupRecord *record,
 															 char *nodeName,
 															 int nodePort);
@@ -92,7 +90,6 @@ static bool TryDropReplicationSlotOutsideTransaction(char *replicationSlotName,
 													 char *nodeName,
 													 int nodePort);
 static bool TryDropUserOutsideTransaction(char *username, char *nodeName, int nodePort);
-static bool TryLockRelationAndPlacementCleanup(Oid relationId, LOCKMODE lockmode);
 
 /* Functions for cleanup infrastructure */
 static CleanupRecord * TupleToCleanupRecord(HeapTuple heapTuple,
@@ -134,8 +131,7 @@ citus_cleanup_orphaned_shards(PG_FUNCTION_ARGS)
 	EnsureCoordinator();
 	PreventInTransactionBlock(true, "citus_cleanup_orphaned_shards");
 
-	bool waitForLocks = true;
-	int droppedShardCount = DropOrphanedShardsForMove(waitForLocks);
+	int droppedShardCount = DropOrphanedResourcesForCleanup();
 	if (droppedShardCount > 0)
 	{
 		ereport(NOTICE, (errmsg("cleaned up %d orphaned shards", droppedShardCount)));
@@ -156,8 +152,7 @@ isolation_cleanup_orphaned_shards(PG_FUNCTION_ARGS)
 	CheckCitusVersion(ERROR);
 	EnsureCoordinator();
 
-	bool waitForLocks = true;
-	int droppedShardCount = DropOrphanedShardsForMove(waitForLocks);
+	int droppedShardCount = DropOrphanedResourcesForCleanup();
 	if (droppedShardCount > 0)
 	{
 		ereport(NOTICE, (errmsg("cleaned up %d orphaned shards", droppedShardCount)));
@@ -197,8 +192,7 @@ citus_cleanup_orphaned_resources(PG_FUNCTION_ARGS)
 
 /*
  * DropOrphanedShardsInSeparateTransaction cleans up orphaned shards by
- * connecting to localhost. This is done, so that the locks that
- * DropOrphanedShardsForMove takes are only held for a short time.
+ * connecting to localhost.
  */
 void
 DropOrphanedShardsInSeparateTransaction(void)
@@ -212,9 +206,8 @@ DropOrphanedShardsInSeparateTransaction(void)
 
 
 /*
- * TryDropOrphanedResources is a wrapper around DropOrphanedShardsForMove and
- * DropOrphanedResourcesForCleanup that catches any errors to make it safe to
- * use in the maintenance daemon.
+ * TryDropOrphanedResources is a wrapper around DropOrphanedResourcesForCleanup and
+ * that catches any errors to make it safe to use in the maintenance daemon.
  *
  * If dropping any of the shards failed this function returns -1, otherwise it
  * returns the number of dropped resources.
@@ -233,7 +226,6 @@ TryDropOrphanedResources(bool waitForLocks)
 
 	PG_TRY();
 	{
-		droppedResourceCount = DropOrphanedShardsForMove(waitForLocks);
 		droppedResourceCount += DropOrphanedResourcesForCleanup();
 
 		/*
@@ -358,107 +350,6 @@ DropOrphanedResourcesForCleanup()
 	}
 
 	return removedResourceCountForCleanup;
-}
-
-
-/*
- * DropOrphanedShardsForMove removes shards that were marked SHARD_STATE_TO_DELETE before.
- *
- * It does so by trying to take an exclusive lock on the shard and its
- * colocated placements before removing. If the lock cannot be obtained it
- * skips the group and continues with others. The group that has been skipped
- * will be removed at a later time when there are no locks held anymore on
- * those placements.
- *
- * If waitForLocks is false, then if we cannot take a lock on pg_dist_placement
- * we continue without waiting.
- *
- * Before doing any of this it will take an exclusive PlacementCleanup lock.
- * This is to ensure that this function is not being run concurrently.
- * Otherwise really bad race conditions are possible, such as removing all
- * placements of a shard. waitForLocks indicates if this function should
- * wait for this lock or not.
- *
- */
-static int
-DropOrphanedShardsForMove(bool waitForLocks)
-{
-	int removedShardCount = 0;
-
-	/*
-	 * We should try to take the highest lock that we take
-	 * later in this function for pg_dist_placement. We take RowExclusiveLock
-	 * in DeleteShardPlacementRow.
-	 */
-	LOCKMODE lockmode = RowExclusiveLock;
-
-	if (!IsCoordinator())
-	{
-		return 0;
-	}
-
-	if (waitForLocks)
-	{
-		LockPlacementCleanup();
-	}
-	else
-	{
-		Oid distPlacementId = DistPlacementRelationId();
-		if (!TryLockRelationAndPlacementCleanup(distPlacementId, lockmode))
-		{
-			return 0;
-		}
-	}
-
-	int failedShardDropCount = 0;
-	List *shardPlacementList = AllShardPlacementsWithShardPlacementState(
-		SHARD_STATE_TO_DELETE);
-
-	GroupShardPlacement *placement = NULL;
-	foreach_ptr(placement, shardPlacementList)
-	{
-		if (!PrimaryNodeForGroup(placement->groupId, NULL) ||
-			!ShardExists(placement->shardId))
-		{
-			continue;
-		}
-
-		ShardPlacement *shardPlacement = LoadShardPlacement(placement->shardId,
-															placement->placementId);
-		ShardInterval *shardInterval = LoadShardInterval(placement->shardId);
-		char *qualifiedTableName = ConstructQualifiedShardName(shardInterval);
-
-		if (TryDropShardOutsideTransaction(qualifiedTableName,
-										   shardPlacement->nodeName,
-										   shardPlacement->nodePort))
-		{
-			ereport(LOG, (errmsg("deferred drop of orphaned shard %s on %s:%d "
-								 "after a move completed",
-								 qualifiedTableName,
-								 shardPlacement->nodeName,
-								 shardPlacement->nodePort)));
-
-			/* delete the actual placement */
-			DeleteShardPlacementRow(placement->placementId);
-			removedShardCount++;
-		}
-		else
-		{
-			/*
-			 * We log failures at the end, since they occur repeatedly
-			 * for a large number of objects.
-			 */
-			failedShardDropCount++;
-		}
-	}
-
-	if (failedShardDropCount > 0)
-	{
-		ereport(WARNING, (errmsg("failed to clean up %d orphaned shards out of %d",
-								 failedShardDropCount, list_length(shardPlacementList))));
-	}
-
-	return removedShardCount;
 }
 
 
@@ -754,30 +645,6 @@ DeleteCleanupRecordByRecordIdOutsideTransaction(uint64 recordId)
 		CitusExtensionOwnerName());
 	SendCommandListToWorkerOutsideTransactionWithConnection(connection,
 															list_make1(command->data));
-}
-
-
-/*
- * TryLockRelationAndPlacementCleanup tries to lock the given relation
- * and the placement cleanup. If it cannot, it returns false.
- *
- */
-static bool
-TryLockRelationAndPlacementCleanup(Oid relationId, LOCKMODE lockmode)
-{
-	if (!ConditionalLockRelationOid(relationId, lockmode))
-	{
-		ereport(DEBUG1, (errmsg(
-							 "could not acquire shard lock to cleanup placements")));
-		return false;
-	}
-
-	if (!TryLockPlacementCleanup())
-	{
-		ereport(DEBUG1, (errmsg("could not acquire lock to cleanup placements")));
-		return false;
-	}
-	return true;
 }
 
 

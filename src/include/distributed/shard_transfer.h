@@ -19,6 +19,7 @@ extern void CopyShardsToNode(WorkerNode *sourceNode, WorkerNode *targetNode,
 							 List *shardIntervalList, char *snapshotName);
 extern void VerifyTablesHaveReplicaIdentity(List *colocatedTableList);
 extern bool RelationCanPublishAllModifications(Oid relationId);
+extern void InsertDeferredDropCleanupRecordsForShards(List *shardIntervalList);
 extern void UpdatePlacementUpdateStatusForShardIntervalList(List *shardIntervalList,
 															char *sourceName,
 															int sourcePort,

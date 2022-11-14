@@ -67,8 +67,10 @@ SET citus.grep_remote_commands = '%CREATE SUBSCRIPTION%';
 -- PG14, beacuse PG13 doesn't support binary logical replication.
 SET citus.enable_binary_protocol = false;
 SELECT master_move_shard_placement(11568900, 'localhost', :worker_1_port, 'localhost', :worker_2_port, 'force_logical');
+CALL citus_cleanup_orphaned_shards();
 SET citus.cpu_priority_for_logical_replication_senders = 15;
 SELECT master_move_shard_placement(11568900, 'localhost', :worker_2_port, 'localhost', :worker_1_port, 'force_logical');
+CALL citus_cleanup_orphaned_shards();
 SET citus.max_high_priority_background_processes = 3;
 SELECT master_move_shard_placement(11568900, 'localhost', :worker_1_port, 'localhost', :worker_2_port, 'force_logical');
 CALL citus_cleanup_orphaned_shards();

@@ -296,7 +296,7 @@ extern List * FilterActiveShardPlacementListByNode(List *shardPlacementList,
 												   WorkerNode *workerNode);
 extern List * ActiveShardPlacementListOnGroup(uint64 shardId, int32 groupId);
 extern List * ActiveShardPlacementList(uint64 shardId);
-extern List * ShardPlacementListWithoutOrphanedPlacements(uint64 shardId);
+extern List * ShardPlacementListSortedByWorker(uint64 shardId);
 extern ShardPlacement * ActiveShardPlacement(uint64 shardId, bool missingOk);
 extern WorkerNode * ActiveShardPlacementWorkerNode(uint64 shardId);
 extern List * BuildShardPlacementList(int64 shardId);

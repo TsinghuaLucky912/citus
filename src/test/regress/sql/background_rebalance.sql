@@ -16,11 +16,16 @@ SELECT citus_rebalance_wait();
 
 SELECT citus_move_shard_placement(85674000, 'localhost', :worker_1_port, 'localhost', :worker_2_port, shard_transfer_mode => 'block_writes');
 
+CALL citus_cleanup_orphaned_resources();
 -- rebalance a table in the background
 SELECT 1 FROM citus_rebalance_start();
 SELECT citus_rebalance_wait();
 
+CALL citus_cleanup_orphaned_resources();
+
 SELECT citus_move_shard_placement(85674000, 'localhost', :worker_1_port, 'localhost', :worker_2_port, shard_transfer_mode => 'block_writes');
+
+CALL citus_cleanup_orphaned_resources();
 
 CREATE TABLE t2 (a int);
 SELECT create_distributed_table('t2', 'a' , colocate_with => 't1');
@@ -30,9 +35,13 @@ SELECT 1 FROM citus_rebalance_start();
 SELECT 1 FROM citus_rebalance_start(shard_transfer_mode => 'block_writes');
 SELECT citus_rebalance_wait();
 
+CALL citus_cleanup_orphaned_resources();
+
 DROP TABLE t2;
 
 SELECT citus_move_shard_placement(85674000, 'localhost', :worker_1_port, 'localhost', :worker_2_port, shard_transfer_mode => 'block_writes');
+
+CALL citus_cleanup_orphaned_resources();
 
 -- show we can stop a rebalance, the stop causes the move to not have happened, eg, our move back below fails.
 SELECT 1 FROM citus_rebalance_start();
@@ -46,15 +55,22 @@ SET client_min_messages TO WARNING;
 CALL citus_cleanup_orphaned_shards();
 RESET client_min_messages;
 SELECT citus_move_shard_placement(85674000, 'localhost', :worker_1_port, 'localhost', :worker_2_port, shard_transfer_mode => 'block_writes');
-
+SET client_min_messages TO WARNING;
+CALL citus_cleanup_orphaned_resources();
+RESET client_min_messages;
 
 -- show we can't start the rebalancer twice
 SELECT 1 FROM citus_rebalance_start();
 SELECT 1 FROM citus_rebalance_start();
 SELECT citus_rebalance_wait();
 
+CALL citus_cleanup_orphaned_resources();
+
 -- show that the old rebalancer cannot be started with a background rebalance in progress
 SELECT citus_move_shard_placement(85674000, 'localhost', :worker_1_port, 'localhost', :worker_2_port, shard_transfer_mode => 'block_writes');
+SET client_min_messages TO WARNING;
+CALL citus_cleanup_orphaned_resources();
+RESET client_min_messages;
 SELECT 1 FROM citus_rebalance_start();
 SELECT rebalance_table_shards();
 SELECT citus_rebalance_wait();

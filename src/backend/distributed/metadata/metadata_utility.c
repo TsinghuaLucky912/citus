@@ -1078,7 +1078,7 @@ TableShardReplicationFactor(Oid relationId)
 	{
 		uint64 shardId = shardInterval->shardId;
 
-		List *shardPlacementList = ShardPlacementListWithoutOrphanedPlacements(shardId);
+		List *shardPlacementList = ShardPlacementListSortedByWorker(shardId);
 		uint32 shardPlacementCount = list_length(shardPlacementList);
 
 		/*
@@ -1481,7 +1481,7 @@ List *
 ActiveShardPlacementList(uint64 shardId)
 {
 	List *shardPlacementList =
-		ShardPlacementListIncludingOrphanedPlacements(shardId);
+		ShardPlacementListByShardId(shardId);
 
 	List *activePlacementList = FilterShardPlacementList(shardPlacementList,
 														 IsActiveShardPlacement);
@@ -1491,30 +1491,16 @@ ActiveShardPlacementList(uint64 shardId)
 
 
 /*
- * IsShardPlacementNotOrphaned checks returns true if a shard placement is not orphaned
- * Orphaned shards are shards marked to be deleted at a later point (shardstate = 4).
- */
-static inline bool
-IsShardPlacementNotOrphaned(ShardPlacement *shardPlacement)
-{
-	return shardPlacement->shardState != SHARD_STATE_TO_DELETE;
-}
-
-
-/*
- * ShardPlacementListWithoutOrphanedPlacements returns shard placements exluding
- * the ones that are orphaned.
+ * ShardPlacementListSortedByWorker returns shard placements
+ * sorted by worker.
  */
 List *
-ShardPlacementListWithoutOrphanedPlacements(uint64 shardId)
+ShardPlacementListSortedByWorker(uint64 shardId)
 {
 	List *shardPlacementList =
-		ShardPlacementListIncludingOrphanedPlacements(shardId);
+		ShardPlacementListByShardId(shardId);
 
-	List *activePlacementList = FilterShardPlacementList(shardPlacementList,
-														 IsShardPlacementNotOrphaned);
-
-	return SortList(activePlacementList, CompareShardPlacementsByWorker);
+	return SortList(shardPlacementList, CompareShardPlacementsByWorker);
 }
 
 

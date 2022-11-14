@@ -38,6 +38,8 @@ SELECT citus_move_shard_placement(85674000, 'localhost', :worker_1_port, 'localh
 
 (1 row)
 
+CALL citus_cleanup_orphaned_resources();
+NOTICE:  cleaned up 1 orphaned resources
 -- rebalance a table in the background
 SELECT 1 FROM citus_rebalance_start();
 NOTICE:  Scheduled 1 moves as job xxx
@@ -54,12 +56,16 @@ SELECT citus_rebalance_wait();
 
 (1 row)
 
+CALL citus_cleanup_orphaned_resources();
+NOTICE:  cleaned up 1 orphaned resources
 SELECT citus_move_shard_placement(85674000, 'localhost', :worker_1_port, 'localhost', :worker_2_port, shard_transfer_mode => 'block_writes');
  citus_move_shard_placement
 ---------------------------------------------------------------------
 
 (1 row)
 
+CALL citus_cleanup_orphaned_resources();
+NOTICE:  cleaned up 1 orphaned resources
 CREATE TABLE t2 (a int);
 SELECT create_distributed_table('t2', 'a' , colocate_with => 't1');
  create_distributed_table
@@ -87,6 +93,8 @@ SELECT citus_rebalance_wait();
 
 (1 row)
 
+CALL citus_cleanup_orphaned_resources();
+NOTICE:  cleaned up 2 orphaned resources
 DROP TABLE t2;
 SELECT citus_move_shard_placement(85674000, 'localhost', :worker_1_port, 'localhost', :worker_2_port, shard_transfer_mode => 'block_writes');
  citus_move_shard_placement
@@ -94,6 +102,8 @@ SELECT citus_move_shard_placement(85674000, 'localhost', :worker_1_port, 'localh
 
 (1 row)
 
+CALL citus_cleanup_orphaned_resources();
+NOTICE:  cleaned up 1 orphaned resources
 -- show we can stop a rebalance, the stop causes the move to not have happened, eg, our move back below fails.
 SELECT 1 FROM citus_rebalance_start();
 NOTICE:  Scheduled 1 moves as job xxx
@@ -130,6 +140,9 @@ DETAIL:  Move may have already completed.
 
 (1 row)
 
+SET client_min_messages TO WARNING;
+CALL citus_cleanup_orphaned_resources();
+RESET client_min_messages;
 -- show we can't start the rebalancer twice
 SELECT 1 FROM citus_rebalance_start();
 NOTICE:  Scheduled 1 moves as job xxx
@@ -150,6 +163,8 @@ SELECT citus_rebalance_wait();
 
 (1 row)
 
+CALL citus_cleanup_orphaned_resources();
+NOTICE:  cleaned up 1 orphaned resources
 -- show that the old rebalancer cannot be started with a background rebalance in progress
 SELECT citus_move_shard_placement(85674000, 'localhost', :worker_1_port, 'localhost', :worker_2_port, shard_transfer_mode => 'block_writes');
  citus_move_shard_placement
@@ -157,6 +172,9 @@ SELECT citus_move_shard_placement(85674000, 'localhost', :worker_1_port, 'localh
 
 (1 row)
 
+SET client_min_messages TO WARNING;
+CALL citus_cleanup_orphaned_resources();
+RESET client_min_messages;
 SELECT 1 FROM citus_rebalance_start();
 NOTICE:  Scheduled 1 moves as job xxx
 DETAIL:  Rebalance scheduled as background job
