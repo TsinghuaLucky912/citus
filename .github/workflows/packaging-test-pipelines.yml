@@ -1,0 +1,56 @@
+name: Packaging Tests
+
+on:
+  push:
+    branches: "**"
+
+  workflow_dispatch:
+
+jobs:
+  packaging_tests:
+    name: Packaging Tests
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        packaging_docker_image:
+          - citus/packaging:oraclelinux-7-pg
+          - citus/packaging:oraclelinux-8-pg
+          - citus/packaging:centos-7-pg
+          - citus/packaging:centos-8-pg
+        POSTGRES_VERSION:
+          - 13
+          - 14
+          - 15
+        include:
+          - packaging_docker_image: citus/packaging:ubuntu-jammy-all
+          - packaging_docker_image: citus/packaging:debian-bookworm-all
+          - packaging_docker_image: citus/packaging:ubuntu-focal-all
+          - packaging_docker_image: citus/packaging:debian-bullseye-all
+          - packaging_docker_image: citus/packaging:ubuntu-bionic-all
+          - packaging_docker_image: citus/packaging:debian-buster-all
+
+    container:
+      image: ${{ matrix.packaging_docker_image }}${{ matrix.POSTGRES_VERSION }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+
+      - name: Set Postgres installation directory for rpm based distros
+        run: |
+          echo "/usr/pgsql-${{ matrix.POSTGRES_VERSION }}/bin" >> $GITHUB_PATH
+        if: ${{ matrix.POSTGRES_VERSION != '' }}
+
+      - name: Configure
+        run: ./configure
+
+      - name: Make
+        run: make
+
+      - name: Make install
+        run: make install
+
+
+
