@@ -8,7 +8,7 @@ on:
 
 jobs:
   packaging_tests:
-    name: Packaging Tests
+    name: test_packaging
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -37,8 +37,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
 
-
-      - name: Set Postgres installation directory for rpm based distros
+      - name: Add Postgres installation directory into PATH for rpm based distros
         run: |
           echo "/usr/pgsql-${{ matrix.POSTGRES_VERSION }}/bin" >> $GITHUB_PATH
         if: ${{ matrix.POSTGRES_VERSION != '' }}
@@ -47,10 +46,7 @@ jobs:
         run: ./configure
 
       - name: Make
-        run: make
+        run: make -sj$(cat /proc/cpuinfo | grep "core id" | wc -l)
 
       - name: Make install
         run: make install
-
-
-
