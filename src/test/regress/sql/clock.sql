@@ -141,6 +141,22 @@ BEGIN;
 SELECT citus_get_transaction_clock();
 END;
 
+SET citus.enable_cluster_clock to ON;
+
+-- Test if the clock UDFs are volatile, result should never be the same
+SELECT citus_get_node_clock() = citus_get_node_clock();
+select citus_get_transaction_clock() = citus_get_transaction_clock();
+
+-- Test if the clock UDFs are usable by non-superusers
+CREATE ROLE non_super_user_clock;
+SET ROLE non_super_user_clock;
+SELECT citus_get_node_clock();
+BEGIN;
+SELECT citus_get_transaction_clock();
+COMMIT;
+
+\c
 RESET client_min_messages;
 RESET citus.enable_cluster_clock;
+DROP ROLE non_super_user_clock;
 DROP SCHEMA clock CASCADE;

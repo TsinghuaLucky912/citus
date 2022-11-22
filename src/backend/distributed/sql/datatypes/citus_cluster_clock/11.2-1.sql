@@ -130,4 +130,4 @@ CREATE SEQUENCE citus.pg_dist_clock_logical_seq START 1;
 
 ALTER SEQUENCE citus.pg_dist_clock_logical_seq SET SCHEMA pg_catalog;
 
-REVOKE UPDATE ON SEQUENCE pg_catalog.pg_dist_clock_logical_seq FROM public;
+GRANT UPDATE ON SEQUENCE pg_catalog.pg_dist_clock_logical_seq to public;
