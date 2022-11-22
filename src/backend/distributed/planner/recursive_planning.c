@@ -877,8 +877,7 @@ RecursivelyPlanNonRecurringJoinNode(Node *distributedNode, Query *query,
 		 * XXX: Similar to JoinExpr, we don't know how to recursively plan distributed
 		 *      subqueries within join expressions yet.
 		 */
-		ereport(DEBUG4, (errmsg("recursive planner cannot plan distributed "
-								"subqueries within join expressions yet")));
+		RecursivelyPlanSubquery(distributedRte->subquery, recursivePlanningContext);
 		return;
 	}
 	else
